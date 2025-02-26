@@ -3,12 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tư vấn Y tế Trực tuyến</title>
+    <title>iHealth - Phòng khám Đa khoa Trực tuyến</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="landing.css">
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div class="logo">
+                    <img src="images/logo.png" alt="iHealth Logo">
+                </div>
+                <ul class="nav-links">
+                    <li><a href="#home">Trang chủ</a></li>
+                    <li><a href="#about">Giới thiệu</a></li>
+                    <li><a href="#services">Dịch vụ</a></li>
+                    <li><a href="#doctors">Đội ngũ bác sĩ</a></li>
+                    <li><a href="#contact">Liên hệ</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Chăm sóc sức khỏe thông minh</h1>
+                <p>Tư vấn y tế trực tuyến 24/7 với đội ngũ bác sĩ chuyên môn cao</p>
+                <button class="cta-button" onclick="showLoginSection()">Tư vấn trực tuyến ngay</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <h2>Về chúng tôi</h2>
+            <div class="about-content">
+                <div class="about-text">
+                    <p>iHealth là phòng khám đa khoa hiện đại với đội ngũ y bác sĩ giàu kinh nghiệm. Chúng tôi cung cấp dịch vụ khám chữa bệnh chất lượng cao và tư vấn sức khỏe trực tuyến.</p>
+                </div>
+                <div class="about-stats">
+                    <div class="stat-item">
+                        <h3>50+</h3>
+                        <p>Bác sĩ chuyên khoa</p>
+                    </div>
+                    <div class="stat-item">
+                        <h3>1000+</h3>
+                        <p>Bệnh nhân hài lòng</p>
+                    </div>
+                    <div class="stat-item">
+                        <h3>24/7</h3>
+                        <p>Hỗ trợ trực tuyến</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="services">
+        <div class="container">
+            <h2>Dịch vụ của chúng tôi</h2>
+            <div class="service-grid">
+                <div class="service-card">
+                    <i class="fas fa-stethoscope"></i>
+                    <h3>Khám tổng quát</h3>
+                    <p>Dịch vụ khám sức khỏe tổng quát định kỳ</p>
+                </div>
+                <div class="service-card">
+                    <i class="fas fa-video"></i>
+                    <h3>Tư vấn trực tuyến</h3>
+                    <p>Tư vấn sức khỏe online với bác sĩ chuyên khoa</p>
+                </div>
+                <!-- Thêm các dịch vụ khác -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Doctors Section -->
+    <section id="doctors" class="doctors">
+        <div class="container">
+            <h2>Đội ngũ bác sĩ</h2>
+            <div class="doctor-grid">
+                <div class="doctor-card">
+                    <img src="images/doctor1.jpg" alt="Bác sĩ 1">
+                    <h3>BS. Nguyễn Văn A</h3>
+                    <p>Chuyên khoa Nội tổng quát</p>
+                </div>
+                <!-- Thêm các bác sĩ khác -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>Liên hệ</h2>
+            <div class="contact-info">
+                <div class="info-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <p>123 Đường ABC, Quận XYZ, TP.HCM</p>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-phone"></i>
+                    <p>0123 456 789</p>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-envelope"></i>
+                    <p>contact@ihealth.com</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>iHealth</h3>
+                    <p>Chăm sóc sức khỏe thông minh</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Liên kết nhanh</h3>
+                    <ul>
+                        <li><a href="#home">Trang chủ</a></li>
+                        <li><a href="#about">Giới thiệu</a></li>
+                        <li><a href="#services">Dịch vụ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Theo dõi chúng tôi</h3>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 iHealth. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Phần tư vấn online (giữ nguyên code cũ) -->
+    <div id="consultation-section" style="display: none;">
         <!-- Phần đăng nhập -->
         <div id="login-section">
             <h1>Đăng nhập hệ thống</h1>
@@ -74,6 +219,8 @@
             </div>
         </div>
     </div>
+
     <script src="app.js"></script>
+    <script src="landing.js"></script>
 </body>
 </html>

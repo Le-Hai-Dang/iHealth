@@ -68,47 +68,80 @@ document.getElementById('login-button').addEventListener('click', () => {
 
 // Tham gia với tư cách khách
 document.getElementById('guest-button').addEventListener('click', () => {
-    currentUser = 'guest-' + Math.random().toString(36).substr(2, 9);
-    initializeGuestView();
+    const guestId = 'guest-' + Math.random().toString(36).substr(2, 9);
+    currentUser = guestId;
+    isAdmin = false;
+    
+    // Khởi tạo peer connection
+    myPeer.on('open', (id) => {
+        addToQueue({
+            id: id,
+            userId: guestId,
+            timestamp: Date.now()
+        });
+        showWaitingSection();
+    });
 });
 
-// Thêm người dùng vào hàng đợi
-function addToQueue(userId) {
-    waitingQueue.push(userId);
+// Cập nhật hàm addToQueue
+function addToQueue(user) {
+    waitingQueue.push(user);
     updateWaitingList();
+    
+    // Gửi thông báo tới admin (nếu có)
+    if (peers['admin']) {
+        peers['admin'].send({
+            type: 'queue-update',
+            queue: waitingQueue
+        });
+    }
 }
 
 // Cập nhật hiển thị danh sách chờ
 function updateWaitingList() {
     const waitingList = document.getElementById('waiting-list');
-    if (waitingList) {
+    if (waitingList && isAdmin) {
         waitingList.innerHTML = waitingQueue.map((user, index) => `
             <div class="queue-item">
-                ${user} - Số thứ tự: ${index + 1}
-                ${isAdmin ? `<button onclick="callUser('${user}')">Gọi vào</button>` : ''}
+                <span>Khách ${index + 1}: ${user.userId}</span>
+                <button onclick="callUser('${user.id}')">Gọi vào</button>
             </div>
         `).join('');
     }
     
     // Cập nhật thông tin cho người đang chờ
-    const queueNumber = document.getElementById('queue-number');
-    const waitingCount = document.getElementById('waiting-count');
-    if (queueNumber && waitingCount) {
-        const position = waitingQueue.indexOf(currentUser) + 1;
-        queueNumber.textContent = position;
-        waitingCount.textContent = waitingQueue.length;
+    if (!isAdmin) {
+        const queueNumber = document.getElementById('queue-number');
+        const waitingCount = document.getElementById('waiting-count');
+        if (queueNumber && waitingCount) {
+            const position = waitingQueue.findIndex(u => u.userId === currentUser) + 1;
+            queueNumber.textContent = position > 0 ? position : 'Đang xử lý';
+            waitingCount.textContent = waitingQueue.length;
+        }
     }
 }
 
-// Admin gọi user vào phòng họp
-function callUser(userId) {
-    const index = waitingQueue.indexOf(userId);
-    if (index > -1) {
-        waitingQueue.splice(index, 1);
-        // Gửi tín hiệu cho user được gọi
-        // (Trong thực tế cần có websocket/signaling server)
-        updateWaitingList();
-    }
+// Admin gọi user vào phòng
+function callUser(peerId) {
+    if (!isAdmin) return;
+    
+    initializeStream().then(() => {
+        const call = myPeer.call(peerId, myVideoStream);
+        const video = document.createElement('video');
+        
+        call.on('stream', userVideoStream => {
+            addVideoStream(video, userVideoStream);
+            // Xóa user khỏi hàng đợi
+            waitingQueue = waitingQueue.filter(u => u.id !== peerId);
+            updateWaitingList();
+        });
+        
+        call.on('close', () => {
+            video.remove();
+        });
+        
+        peers[peerId] = call;
+    });
 }
 
 // Khởi tạo luồng video
@@ -168,11 +201,32 @@ function showWaitingSection() {
 
 // Khởi tạo view cho admin
 function initializeAdminView() {
-    loginSection.style.display = 'none';
-    adminSection.style.display = 'block';
-    meetingSection.style.display = 'block';
-    initializeStream();
-    updateWaitingList();
+    isAdmin = true;
+    currentUser = 'admin';
+    
+    // Khởi tạo peer connection cho admin
+    myPeer.on('open', (id) => {
+        currentRoom = id; // Lưu ID phòng của admin
+        loginSection.style.display = 'none';
+        adminSection.style.display = 'block';
+        meetingSection.style.display = 'block';
+        
+        // Khởi tạo stream
+        initializeStream().then(() => {
+            // Lắng nghe các kết nối mới
+            myPeer.on('connection', (conn) => {
+                conn.on('data', handlePeerData);
+            });
+        });
+    });
+}
+
+// Xử lý dữ liệu từ peer
+function handlePeerData(data) {
+    if (data.type === 'queue-update') {
+        waitingQueue.push(...data.queue);
+        updateWaitingList();
+    }
 }
 
 // Khởi tạo view cho khách
@@ -296,13 +350,26 @@ function connectToRoom(roomId) {
 
 // Xử lý cuộc gọi đến
 myPeer.on('call', call => {
+    if (!myVideoStream) {
+        initializeStream().then(() => {
+            answerCall(call);
+        });
+    } else {
+        answerCall(call);
+    }
+});
+
+function answerCall(call) {
     call.answer(myVideoStream);
     const video = document.createElement('video');
     
     call.on('stream', userVideoStream => {
         addVideoStream(video, userVideoStream);
     });
-});
+    
+    // Lưu peer connection
+    peers[call.peer] = call;
+}
 
 // Hiển thị nút kick chỉ cho admin
 if (isAdmin) {
