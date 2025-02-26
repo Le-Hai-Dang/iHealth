@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phòng Họp Trực Tuyến</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="meeting-info">
+            <h1>Phòng Họp Trực Tuyến</h1>
+            <div id="join-section">
+                <input type="text" id="room-input" placeholder="Nhập ID phòng...">
+                <button id="join-button">Tham gia phòng</button>
+                <button id="create-button">Tạo phòng mới</button>
+            </div>
+            <div id="room-info" style="display: none;">
+                <p>ID Phòng: <span id="room-id"></span></p>
+                <button id="copy-button">Sao chép ID Phòng</button>
+            </div>
+        </div>
+        
+        <div class="main-grid" style="display: none;">
+            <div class="video-grid" id="video-grid"></div>
+            <div class="chat-section">
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+                    <button id="send-button">Gửi</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls" style="display: none;">
+            <button id="mic-toggle">Tắt Mic</button>
+            <button id="camera-toggle">Tắt Camera</button>
+            <button id="leave-button">Rời Phòng</button>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
