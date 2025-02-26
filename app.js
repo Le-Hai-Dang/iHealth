@@ -544,8 +544,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 password === ADMIN_CREDENTIALS.password) {
                 isAdmin = true;
                 currentUser = 'admin';
+                
+                // Đóng popup đăng nhập
                 document.getElementById('login-popup').style.display = 'none';
+                
+                // Cập nhật trạng thái nút đăng nhập
                 updateLoginStatus();
+                
+                // Hiển thị phòng họp cho admin
+                document.getElementById('consultation-popup').style.display = 'block';
+                document.getElementById('admin-section').style.display = 'block';
+                document.getElementById('meeting-section').style.display = 'block';
+                
+                // Khởi tạo kết nối video
+                initializeAdminRoom();
             } else {
                 alert('Thông tin đăng nhập không chính xác!');
             }
