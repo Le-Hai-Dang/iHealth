@@ -252,9 +252,31 @@ function showWaitingSection() {
 
 // Khởi tạo view cho khách
 function initializeGuestView() {
-    loginSection.style.display = 'none';
-    addToQueue(currentUser);
-    showWaitingSection();
+    // Ẩn các section khác
+    document.getElementById('login-popup').style.display = 'none';
+    document.getElementById('admin-section').style.display = 'none';
+    
+    // Hiển thị phần chờ
+    const waitingSection = document.getElementById('waiting-section');
+    waitingSection.style.display = 'block';
+    
+    // Kết nối với admin
+    const conn = myPeer.connect('admin');
+    conn.on('open', () => {
+        conn.send({
+            type: 'join-queue',
+            userId: currentUser
+        });
+        
+        // Cập nhật số thứ tự
+        updateQueuePosition();
+    });
+}
+
+function updateQueuePosition() {
+    const position = waitingQueue.findIndex(u => u.userId === currentUser) + 1;
+    document.getElementById('queue-number').textContent = position;
+    document.getElementById('waiting-count').textContent = waitingQueue.length;
 }
 
 // Tạo phòng mới
@@ -469,3 +491,85 @@ function updateLoginStatus() {
         initializeAdminRoom();
     }
 }
+
+// Xử lý sự kiện cho các nút
+document.addEventListener('DOMContentLoaded', () => {
+    // Nút đăng nhập trên header
+    const loginPopupBtn = document.getElementById('login-popup-btn');
+    if (loginPopupBtn) {
+        loginPopupBtn.addEventListener('click', () => {
+            document.getElementById('login-popup').style.display = 'block';
+        });
+    }
+
+    // Nút tư vấn trực tuyến
+    const consultBtn = document.querySelector('.cta-button');
+    if (consultBtn) {
+        consultBtn.addEventListener('click', () => {
+            if (isAdmin) {
+                initializeAdminRoom();
+            } else {
+                const guestId = 'guest-' + Math.random().toString(36).substr(2, 9);
+                currentUser = guestId;
+                initializeGuestView();
+            }
+            document.getElementById('consultation-section').style.display = 'block';
+        });
+    }
+
+    // Đóng popup khi click nút close hoặc click outside
+    const closeButtons = document.querySelectorAll('.close-popup');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            document.getElementById('login-popup').style.display = 'none';
+            document.getElementById('consultation-popup').style.display = 'none';
+        });
+    });
+
+    // Click outside để đóng popup
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('popup')) {
+            e.target.style.display = 'none';
+        }
+    });
+
+    // Nút đăng nhập trong popup
+    const loginButton = document.getElementById('login-button');
+    if (loginButton) {
+        loginButton.addEventListener('click', () => {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === ADMIN_CREDENTIALS.username && 
+                password === ADMIN_CREDENTIALS.password) {
+                isAdmin = true;
+                currentUser = 'admin';
+                document.getElementById('login-popup').style.display = 'none';
+                updateLoginStatus();
+            } else {
+                alert('Thông tin đăng nhập không chính xác!');
+            }
+        });
+    }
+});
+
+// Cập nhật trạng thái đăng nhập
+function updateLoginStatus() {
+    const loginBtn = document.getElementById('login-popup-btn');
+    if (loginBtn) {
+        loginBtn.textContent = isAdmin ? 'Admin' : 'Đăng nhập';
+        loginBtn.classList.toggle('logged-in', isAdmin);
+    }
+}
+
+document.getElementById('leave-queue-button').addEventListener('click', () => {
+    // Xóa khỏi hàng đợi
+    const index = waitingQueue.findIndex(u => u.userId === currentUser);
+    if (index > -1) {
+        waitingQueue.splice(index, 1);
+    }
+    
+    // Đóng popup và reset view
+    document.getElementById('consultation-popup').style.display = 'none';
+    document.getElementById('waiting-section').style.display = 'none';
+});
