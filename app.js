@@ -78,31 +78,26 @@ document.getElementById('login-button').addEventListener('click', () => {
 
 // Khởi tạo phòng cho admin
 function initializeAdminRoom() {
-    loginSection.style.display = 'none';
-    adminSection.style.display = 'block';
-    meetingSection.style.display = 'block';
-
-    initializeStream().then(() => {
-        // Lắng nghe kết nối từ user
-        myPeer.on('connection', (conn) => {
-            console.log('New user connected:', conn.peer);
-            conn.on('data', (data) => {
-                if (data.type === 'join-queue') {
-                    addToQueue({
-                        id: conn.peer,
-                        userId: data.userId,
-                        timestamp: Date.now()
-                    });
-                }
-            });
+    console.log('Initializing admin room');
+    
+    // Lắng nghe kết nối từ user
+    myPeer.on('connection', (conn) => {
+        console.log('New user connected:', conn.peer);
+        conn.on('data', (data) => {
+            if (data.type === 'join-queue') {
+                addToQueue({
+                    id: conn.peer,
+                    userId: data.userId,
+                    timestamp: Date.now()
+                });
+            }
         });
+    });
 
-        // Lắng nghe cuộc gọi đến
-        myPeer.on('call', (call) => {
-            console.log('Incoming call from:', call.peer);
-            call.answer(myVideoStream);
-            handleVideoCall(call);
-        });
+    // Lắng nghe cuộc gọi đến
+    myPeer.on('call', (call) => {
+        call.answer(myVideoStream);
+        handleVideoCall(call);
     });
 }
 
@@ -548,16 +543,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Đóng popup đăng nhập
                 document.getElementById('login-popup').style.display = 'none';
                 
-                // Cập nhật trạng thái nút đăng nhập
+                // Hiển thị phòng họp
+                const consultationPopup = document.getElementById('consultation-popup');
+                const adminSection = document.getElementById('admin-section');
+                const meetingSection = document.getElementById('meeting-section');
+                
+                consultationPopup.style.display = 'block';
+                adminSection.style.display = 'block';
+                meetingSection.style.display = 'block';
+                
+                // Khởi tạo stream và kết nối
+                initializeStream().then(() => {
+                    myPeer.on('open', (id) => {
+                        currentRoom = id;
+                        console.log('Admin peer ID:', id);
+                        initializeAdminRoom();
+                    });
+                });
+                
+                // Cập nhật UI
                 updateLoginStatus();
-                
-                // Hiển thị phòng họp cho admin
-                document.getElementById('consultation-popup').style.display = 'block';
-                document.getElementById('admin-section').style.display = 'block';
-                document.getElementById('meeting-section').style.display = 'block';
-                
-                // Khởi tạo kết nối video
-                initializeAdminRoom();
             } else {
                 alert('Thông tin đăng nhập không chính xác!');
             }
