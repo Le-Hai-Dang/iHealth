@@ -51,35 +51,79 @@ const chatToggle = document.getElementById('chat-toggle');
 const kickUser = document.getElementById('kick-user');
 const endCall = document.getElementById('end-call');
 
+// Popup handling
+const loginPopup = document.getElementById('login-popup');
+const consultationPopup = document.getElementById('consultation-popup');
+const loginPopupBtn = document.getElementById('login-popup-btn');
+
 // Xử lý đăng nhập
 document.getElementById('login-button').addEventListener('click', () => {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    if (username === ADMIN_CREDENTIALS.username && 
-        password === ADMIN_CREDENTIALS.password) {
+    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
         isAdmin = true;
         currentUser = 'admin';
-        initializeAdminView();
+        
+        // Khởi tạo kết nối cho admin
+        myPeer.on('open', (id) => {
+            console.log('Admin peer ID:', id);
+            currentRoom = id;
+            initializeAdminRoom();
+        });
     } else {
         alert('Thông tin đăng nhập không chính xác!');
     }
 });
 
-// Tham gia với tư cách khách
+// Khởi tạo phòng cho admin
+function initializeAdminRoom() {
+    loginSection.style.display = 'none';
+    adminSection.style.display = 'block';
+    meetingSection.style.display = 'block';
+
+    initializeStream().then(() => {
+        // Lắng nghe kết nối từ user
+        myPeer.on('connection', (conn) => {
+            console.log('New user connected:', conn.peer);
+            conn.on('data', (data) => {
+                if (data.type === 'join-queue') {
+                    addToQueue({
+                        id: conn.peer,
+                        userId: data.userId,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        });
+
+        // Lắng nghe cuộc gọi đến
+        myPeer.on('call', (call) => {
+            console.log('Incoming call from:', call.peer);
+            call.answer(myVideoStream);
+            handleVideoCall(call);
+        });
+    });
+}
+
+// Xử lý tham gia với tư cách khách
 document.getElementById('guest-button').addEventListener('click', () => {
     const guestId = 'guest-' + Math.random().toString(36).substr(2, 9);
     currentUser = guestId;
     isAdmin = false;
-    
-    // Khởi tạo peer connection
+
     myPeer.on('open', (id) => {
-        addToQueue({
-            id: id,
-            userId: guestId,
-            timestamp: Date.now()
+        console.log('Guest peer ID:', id);
+        // Kết nối với admin
+        const conn = myPeer.connect(currentRoom);
+        conn.on('open', () => {
+            // Gửi yêu cầu xếp hàng
+            conn.send({
+                type: 'join-queue',
+                userId: guestId
+            });
+            showWaitingSection();
         });
-        showWaitingSection();
     });
 });
 
@@ -123,40 +167,47 @@ function updateWaitingList() {
 
 // Admin gọi user vào phòng
 function callUser(peerId) {
-    if (!isAdmin) return;
+    if (!isAdmin || !myVideoStream) return;
     
-    initializeStream().then(() => {
-        const call = myPeer.call(peerId, myVideoStream);
-        const video = document.createElement('video');
-        
-        call.on('stream', userVideoStream => {
-            addVideoStream(video, userVideoStream);
-            // Xóa user khỏi hàng đợi
-            waitingQueue = waitingQueue.filter(u => u.id !== peerId);
-            updateWaitingList();
-        });
-        
-        call.on('close', () => {
-            video.remove();
-        });
-        
-        peers[peerId] = call;
-    });
+    console.log('Calling user:', peerId);
+    const call = myPeer.call(peerId, myVideoStream);
+    handleVideoCall(call);
+    
+    // Xóa user khỏi hàng đợi
+    waitingQueue = waitingQueue.filter(u => u.id !== peerId);
+    updateWaitingList();
 }
 
-// Khởi tạo luồng video
+// Xử lý cuộc gọi video
+function handleVideoCall(call) {
+    const video = document.createElement('video');
+    
+    call.on('stream', (userVideoStream) => {
+        console.log('Received stream from:', call.peer);
+        addVideoStream(video, userVideoStream);
+    });
+
+    call.on('close', () => {
+        console.log('Call ended with:', call.peer);
+        video.remove();
+    });
+
+    peers[call.peer] = call;
+}
+
+// Khởi tạo video stream
 async function initializeStream() {
     try {
         myVideoStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
         });
-        const myVideo = document.createElement('video');
-        myVideo.muted = true;
         addVideoStream(myVideo, myVideoStream);
+        return true;
     } catch (err) {
-        console.error('Không thể truy cập thiết bị media:', err);
-        alert('Vui lòng cho phép truy cập camera và microphone');
+        console.error('Media device error:', err);
+        alert('Không thể truy cập camera hoặc microphone');
+        return false;
     }
 }
 
@@ -197,36 +248,6 @@ function leaveRoom() {
 function showWaitingSection() {
     waitingSection.style.display = 'block';
     updateWaitingList();
-}
-
-// Khởi tạo view cho admin
-function initializeAdminView() {
-    isAdmin = true;
-    currentUser = 'admin';
-    
-    // Khởi tạo peer connection cho admin
-    myPeer.on('open', (id) => {
-        currentRoom = id; // Lưu ID phòng của admin
-        loginSection.style.display = 'none';
-        adminSection.style.display = 'block';
-        meetingSection.style.display = 'block';
-        
-        // Khởi tạo stream
-        initializeStream().then(() => {
-            // Lắng nghe các kết nối mới
-            myPeer.on('connection', (conn) => {
-                conn.on('data', handlePeerData);
-            });
-        });
-    });
-}
-
-// Xử lý dữ liệu từ peer
-function handlePeerData(data) {
-    if (data.type === 'queue-update') {
-        waitingQueue.push(...data.queue);
-        updateWaitingList();
-    }
 }
 
 // Khởi tạo view cho khách
@@ -348,29 +369,6 @@ function connectToRoom(roomId) {
     peers[call.peer] = call;
 }
 
-// Xử lý cuộc gọi đến
-myPeer.on('call', call => {
-    if (!myVideoStream) {
-        initializeStream().then(() => {
-            answerCall(call);
-        });
-    } else {
-        answerCall(call);
-    }
-});
-
-function answerCall(call) {
-    call.answer(myVideoStream);
-    const video = document.createElement('video');
-    
-    call.on('stream', userVideoStream => {
-        addVideoStream(video, userVideoStream);
-    });
-    
-    // Lưu peer connection
-    peers[call.peer] = call;
-}
-
 // Hiển thị nút kick chỉ cho admin
 if (isAdmin) {
     kickUser.style.display = 'block';
@@ -412,3 +410,62 @@ endCall.addEventListener('click', () => {
         leaveRoom();
     }
 });
+
+// Show login popup
+loginPopupBtn.addEventListener('click', () => {
+    loginPopup.style.display = 'block';
+});
+
+// Show consultation popup
+function showConsultationPopup() {
+    consultationPopup.style.display = 'block';
+}
+
+// Close popups when clicking on X or outside
+document.querySelectorAll('.close-popup').forEach(closeBtn => {
+    closeBtn.addEventListener('click', () => {
+        loginPopup.style.display = 'none';
+        consultationPopup.style.display = 'none';
+    });
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === loginPopup || e.target === consultationPopup) {
+        loginPopup.style.display = 'none';
+        consultationPopup.style.display = 'none';
+    }
+});
+
+// Start consultation
+document.getElementById('start-consultation').addEventListener('click', () => {
+    consultationPopup.style.display = 'none';
+    if (isAdmin) {
+        initializeAdminRoom();
+    } else {
+        initializeGuestView();
+    }
+    document.getElementById('consultation-section').style.display = 'block';
+});
+
+// Show consultation popup from CTA button
+document.querySelector('.cta-button').addEventListener('click', () => {
+    if (isAdmin) {
+        initializeAdminRoom();
+    } else {
+        const guestId = 'guest-' + Math.random().toString(36).substr(2, 9);
+        currentUser = guestId;
+        initializeGuestView();
+    }
+    consultationPopup.style.display = 'block';
+});
+
+// Update login status and show appropriate view
+function updateLoginStatus() {
+    const loginBtn = document.getElementById('login-popup-btn');
+    loginPopup.style.display = 'none';
+    if (isAdmin) {
+        loginBtn.textContent = 'Admin';
+        loginBtn.classList.add('logged-in');
+        initializeAdminRoom();
+    }
+}

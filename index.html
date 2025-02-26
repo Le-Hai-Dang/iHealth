@@ -17,13 +17,18 @@
                 <div class="logo">
                     <img src="images/logo.png" alt="iHealth Logo">
                 </div>
-                <ul class="nav-links">
-                    <li><a href="#home">Trang chủ</a></li>
-                    <li><a href="#about">Giới thiệu</a></li>
-                    <li><a href="#services">Dịch vụ</a></li>
-                    <li><a href="#doctors">Đội ngũ bác sĩ</a></li>
-                    <li><a href="#contact">Liên hệ</a></li>
-                </ul>
+                <div class="nav-container">
+                    <ul class="nav-links">
+                        <li><a href="#home">Trang chủ</a></li>
+                        <li><a href="#about">Giới thiệu</a></li>
+                        <li><a href="#services">Dịch vụ</a></li>
+                        <li><a href="#doctors">Đội ngũ bác sĩ</a></li>
+                        <li><a href="#contact">Liên hệ</a></li>
+                    </ul>
+                    <div class="auth-section">
+                        <button id="login-popup-btn" class="login-btn">Đăng nhập</button>
+                    </div>
+                </div>
             </nav>
         </div>
     </header>
@@ -152,70 +157,60 @@
         </div>
     </footer>
 
-    <!-- Phần tư vấn online (giữ nguyên code cũ) -->
-    <div id="consultation-section" style="display: none;">
-        <!-- Phần đăng nhập -->
-        <div id="login-section">
-            <h1>Đăng nhập hệ thống</h1>
+    <!-- Consultation Popup -->
+    <div id="consultation-popup" class="popup">
+        <div class="popup-content">
+            <span class="close-popup">&times;</span>
+            <h2>Tư vấn trực tuyến</h2>
+            <div id="consultation-content">
+                <!-- Phần chờ của user -->
+                <div id="waiting-section" style="display: none;">
+                    <h2>Phòng chờ tư vấn</h2>
+                    <p>Số thứ tự của bạn: <span id="queue-number"></span></p>
+                    <p>Đang chờ: <span id="waiting-count"></span> người</p>
+                    <button id="leave-queue-button">Hủy tư vấn</button>
+                </div>
+
+                <!-- Phần quản lý của admin -->
+                <div id="admin-section" style="display: none;">
+                    <h2>Quản lý phòng tư vấn</h2>
+                    <div class="queue-list">
+                        <h3>Danh sách chờ</h3>
+                        <div id="waiting-list"></div>
+                    </div>
+                    <button id="next-patient-button">Gọi bệnh nhân tiếp theo</button>
+                </div>
+
+                <!-- Phần video call -->
+                <div id="meeting-section" style="display: none;">
+                    <div class="video-grid" id="video-grid"></div>
+                    <div class="meeting-controls">
+                        <button id="mic-toggle"><i class="fas fa-microphone"></i></button>
+                        <button id="camera-toggle"><i class="fas fa-video"></i></button>
+                        <button id="chat-toggle"><i class="fas fa-comments"></i></button>
+                        <button id="end-call" class="danger"><i class="fas fa-phone-slash"></i></button>
+                    </div>
+                    <div class="chat-section" style="display: none;">
+                        <div id="chat-messages"></div>
+                        <div class="chat-input">
+                            <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+                            <button id="send-button">Gửi</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Popup -->
+    <div id="login-popup" class="popup">
+        <div class="popup-content">
+            <span class="close-popup">&times;</span>
+            <h2>Đăng nhập</h2>
             <div class="login-form">
                 <input type="text" id="username" placeholder="Tên đăng nhập">
                 <input type="password" id="password" placeholder="Mật khẩu">
                 <button id="login-button">Đăng nhập</button>
-                <button id="guest-button">Tham gia với tư cách khách</button>
-            </div>
-        </div>
-
-        <!-- Phần chờ của user -->
-        <div id="waiting-section" style="display: none;">
-            <h2>Phòng chờ tư vấn</h2>
-            <p>Số thứ tự của bạn: <span id="queue-number"></span></p>
-            <p>Đang chờ: <span id="waiting-count"></span> người</p>
-            <button id="leave-queue-button">Hủy tư vấn</button>
-        </div>
-
-        <!-- Phần quản lý của admin -->
-        <div id="admin-section" style="display: none;">
-            <h2>Quản lý phòng tư vấn</h2>
-            <div class="queue-list">
-                <h3>Danh sách chờ</h3>
-                <div id="waiting-list"></div>
-            </div>
-            <button id="next-patient-button">Gọi bệnh nhân tiếp theo</button>
-        </div>
-
-        <!-- Phần họp trực tuyến -->
-        <div id="meeting-section" style="display: none;">
-            <div class="video-grid" id="video-grid"></div>
-            <div class="chat-section">
-                <div class="chat-messages" id="chat-messages"></div>
-                <div class="chat-input">
-                    <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
-                    <button id="send-button">Gửi</button>
-                </div>
-            </div>
-            <div class="meeting-controls">
-                <div class="control-buttons">
-                    <button id="mic-toggle" class="control-btn">
-                        <i class="fas fa-microphone"></i>
-                        <span>Tắt Mic</span>
-                    </button>
-                    <button id="camera-toggle" class="control-btn">
-                        <i class="fas fa-video"></i>
-                        <span>Tắt Camera</span>
-                    </button>
-                    <button id="chat-toggle" class="control-btn">
-                        <i class="fas fa-comments"></i>
-                        <span>Chat</span>
-                    </button>
-                    <button id="end-call" class="control-btn danger">
-                        <i class="fas fa-phone-slash"></i>
-                        <span>Kết thúc</span>
-                    </button>
-                    <button id="kick-user" class="control-btn danger" style="display: none;">
-                        <i class="fas fa-user-slash"></i>
-                        <span>Kick người dùng</span>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
