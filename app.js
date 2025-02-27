@@ -52,48 +52,88 @@ const chatMessages = document.getElementById('chat-messages');
 const chatSection = document.querySelector('.chat-section');
 const chatToggleBtn = document.getElementById('chat-toggle');
 
-// Khởi tạo PeerJS ngay khi load trang
+// Khởi tạo Socket.IO
+const socket = io('https://your-server.com');
 let myPeer;
-initializePeer();
 
 function initializePeer() {
-    if (checkAdminCookie()) {
-        myPeer = new Peer('admin', {
-            host: '0.peerjs.com',
-            port: 443,
-            secure: true
-        });
-        isAdmin = true;
-    } else {
-        myPeer = new Peer(undefined, {
-            host: '0.peerjs.com',
-            port: 443,
-            secure: true
-        });
-    }
+    myPeer = new Peer(undefined, {
+        host: '/',
+        port: '3001'
+    });
 
-    // Xử lý khi có cuộc gọi đến
-    myPeer.on('call', async (call) => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-            myVideoStream = stream;
-            
+    myPeer.on('open', id => {
+        socket.emit('join-room', ROOM_ID, id);
+    });
+
+    // Xử lý user mới tham gia
+    socket.on('user-connected', userId => {
+        connectToNewUser(userId, myVideoStream);
+    });
+
+    // Xử lý user disconnect
+    socket.on('user-disconnected', userId => {
+        if (peers[userId]) peers[userId].close();
+    });
+}
+
+// Kết nối video call
+async function connectToNewUser(userId, stream) {
+    const call = myPeer.call(userId, stream);
+    const video = document.createElement('video');
+    
+    call.on('stream', userVideoStream => {
+        addVideoStream(video, userVideoStream);
+    });
+    
+    call.on('close', () => {
+        video.remove();
+    });
+
+    peers[userId] = call;
+}
+
+// Khởi tạo video stream
+async function initializeStream() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        myVideoStream = stream;
+        addVideoStream(myVideo, stream);
+        
+        myPeer.on('call', call => {
             call.answer(stream);
             const video = document.createElement('video');
             
-            call.on('stream', (remoteStream) => {
-                addVideoStream(video, remoteStream);
-                document.getElementById('meeting-section').style.display = 'block';
+            call.on('stream', userVideoStream => {
+                addVideoStream(video, userVideoStream);
             });
-            
-            peers[call.peer] = call;
-        } catch (err) {
-            console.error('Failed to get local stream', err);
-        }
-    });
+        });
+
+        return stream;
+    } catch (err) {
+        console.error('Failed to get media stream:', err);
+    }
+}
+
+// Sửa lại initializeGuestView
+async function initializeGuestView() {
+    try {
+        consultationPopup.style.display = 'block';
+        document.getElementById('waiting-section').style.display = 'block';
+        
+        // Khởi tạo stream và peer connection
+        await initializeStream();
+        initializePeer();
+        
+        // Thêm vào queue
+        socket.emit('add-to-queue', myPeer.id);
+        
+    } catch (err) {
+        console.error('Guest view error:', err);
+    }
 }
 
 // Kiểm tra cookie admin khi load trang
@@ -268,47 +308,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Khởi tạo stream
-async function initializeStream() {
-    try {
-        console.log('Requesting media access...');
-        myVideoStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
-        console.log('Media access granted');
-        addVideoStream(myVideo, myVideoStream);
-        return myVideoStream;
-    } catch (err) {
-        console.error('Media access error:', err);
-        alert('Vui lòng cho phép truy cập camera và microphone');
-    }
-}
-
-// Thêm video stream vào grid
-function addVideoStream(video, stream) {
-    video.srcObject = stream;
-    video.style.width = '100%';
-    video.style.height = '100%';
-    video.style.objectFit = 'cover';
-    
-    video.addEventListener('loadedmetadata', () => {
-        video.play().catch(err => {
-            console.error('Error playing video:', err);
-        });
-        console.log('Video playing');
-    });
-
-    const videoGrid = document.getElementById('video-grid');
-    if (videoGrid) {
-        videoGrid.style.display = 'grid';
-        videoGrid.style.gridTemplateColumns = '1fr';
-        videoGrid.style.gap = '10px';
-        videoGrid.append(video);
-        console.log('Video appended to grid');
-    }
-}
-
 // Khởi tạo các controls
 function initializeControls() {
     // Đảm bảo các elements tồn tại trước khi thêm event listener
@@ -391,24 +390,6 @@ function endCall() {
     // Reset video grid
     const videoGrid = document.getElementById('video-grid');
     videoGrid.innerHTML = '';
-}
-
-// Khởi tạo view cho khách
-async function initializeGuestView() {
-    try {
-        consultationPopup.style.display = 'block';
-        document.getElementById('waiting-section').style.display = 'block';
-        
-        // Thêm vào waiting queue và cập nhật UI
-        waitingQueue.push({
-            id: myPeer.id,
-            joinTime: new Date()
-        });
-        updateQueuePosition();
-
-    } catch (err) {
-        console.error('Guest view error:', err);
-    }
 }
 
 // Khởi tạo phòng cho admin
@@ -669,3 +650,26 @@ document.getElementById('leave-queue-button').addEventListener('click', () => {
     document.getElementById('consultation-popup').style.display = 'none';
     document.getElementById('waiting-section').style.display = 'none';
 });
+
+const express = require('express');
+const app = express();
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
+
+io.on('connection', socket => {
+    socket.on('join-room', (roomId, userId) => {
+        socket.join(roomId);
+        socket.broadcast.to(roomId).emit('user-connected', userId);
+        
+        socket.on('disconnect', () => {
+            socket.broadcast.to(roomId).emit('user-disconnected', userId);
+        });
+    });
+    
+    socket.on('add-to-queue', userId => {
+        waitingQueue.push(userId);
+        io.emit('queue-updated', waitingQueue);
+    });
+});
+
+server.listen(3001);
