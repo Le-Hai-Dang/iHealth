@@ -266,15 +266,25 @@ async function initializeStream() {
     }
 }
 
-// Hàm thêm video stream
+// Thêm video stream vào grid
 function addVideoStream(video, stream) {
     video.srcObject = stream;
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.objectFit = 'cover';
+    
     video.addEventListener('loadedmetadata', () => {
-        video.play();
+        video.play().catch(err => {
+            console.error('Error playing video:', err);
+        });
         console.log('Video playing');
     });
+
     const videoGrid = document.getElementById('video-grid');
     if (videoGrid) {
+        videoGrid.style.display = 'grid';
+        videoGrid.style.gridTemplateColumns = '1fr';
+        videoGrid.style.gap = '10px';
         videoGrid.append(video);
         console.log('Video appended to grid');
     }
@@ -367,11 +377,17 @@ function endCall() {
 // Khởi tạo view cho khách
 async function initializeGuestView() {
     try {
-        if (!myPeer) {
-            initializePeer();
-        }
+        // Khởi tạo media stream trước
+        myVideoStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        
+        // Hiển thị video của user
+        document.getElementById('meeting-section').style.display = 'block';
+        addVideoStream(myVideo, myVideoStream);
 
-        // Đợi kết nối PeerJS được thiết lập
+        // Sau đó mới kết nối PeerJS
         await new Promise((resolve) => {
             if (myPeer.open) {
                 resolve();
@@ -380,13 +396,6 @@ async function initializeGuestView() {
             }
         });
 
-        // Khởi tạo media stream
-        myVideoStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
-        
-        addVideoStream(myVideo, myVideoStream);
         document.getElementById('waiting-section').style.display = 'block';
         initializeControls();
 
