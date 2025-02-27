@@ -52,8 +52,34 @@ const chatMessages = document.getElementById('chat-messages');
 const chatSection = document.querySelector('.chat-section');
 const chatToggleBtn = document.getElementById('chat-toggle');
 
-// Cập nhật cấu hình PeerJS
+// Khởi tạo PeerJS ngay khi load trang
 let myPeer;
+initializePeer();
+
+function initializePeer() {
+    if (checkAdminCookie()) {
+        myPeer = new Peer('admin', {
+            host: '0.peerjs.com',
+            port: 443,
+            secure: true,
+            path: '/',
+            debug: 3
+        });
+    } else {
+        myPeer = new Peer(undefined, {
+            host: '0.peerjs.com',
+            port: 443,
+            secure: true,
+            path: '/',
+            debug: 3
+        });
+    }
+
+    // Add error handler
+    myPeer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+    });
+}
 
 // Kiểm tra cookie admin khi load trang
 function checkAdminCookie() {
@@ -341,12 +367,17 @@ function endCall() {
 // Khởi tạo view cho khách
 async function initializeGuestView() {
     try {
+        if (!myPeer) {
+            initializePeer();
+        }
+
         // Đợi kết nối PeerJS được thiết lập
         await new Promise((resolve) => {
-            myPeer.on('open', (id) => {
-                console.log('Guest PeerID:', id);
+            if (myPeer.open) {
                 resolve();
-            });
+            } else {
+                myPeer.on('open', resolve);
+            }
         });
 
         // Khởi tạo media stream
@@ -356,31 +387,9 @@ async function initializeGuestView() {
         });
         
         addVideoStream(myVideo, myVideoStream);
-
-        if (waitingQueue.length === 0) {
-            document.getElementById('waiting-section').style.display = 'none';
-            document.getElementById('meeting-section').style.display = 'block';
-
-            console.log('Guest calling admin');
-            const call = myPeer.call('admin', myVideoStream);
-            
-            const adminVideo = document.createElement('video');
-            call.on('stream', (adminVideoStream) => {
-                console.log('Guest received admin stream');
-                addVideoStream(adminVideo, adminVideoStream);
-            });
-            
-            peers[call.peer] = call;
-        } else {
-            document.getElementById('waiting-section').style.display = 'block';
-            waitingQueue.push({
-                id: myPeer.id,
-                joinTime: new Date()
-            });
-            updateQueuePosition();
-        }
-
+        document.getElementById('waiting-section').style.display = 'block';
         initializeControls();
+
     } catch (err) {
         console.error('Guest view error:', err);
     }
@@ -621,44 +630,4 @@ document.getElementById('leave-queue-button').addEventListener('click', () => {
     // Đóng popup và reset view
     document.getElementById('consultation-popup').style.display = 'none';
     document.getElementById('waiting-section').style.display = 'none';
-});
-
-// Khởi tạo PeerJS trước khi sử dụng
-if (checkAdminCookie()) {
-    myPeer = new Peer('admin', {
-        host: '0.peerjs.com',
-        port: 443,
-        secure: true,
-        path: '/',
-        debug: 3,
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        }
-    });
-} else {
-    myPeer = new Peer(undefined, {
-        host: '0.peerjs.com',
-        port: 443,
-        secure: true,
-        path: '/',
-        debug: 3
-    });
-}
-
-// Sau đó mới thêm error handler
-myPeer.on('error', (err) => {
-    console.error('PeerJS error:', err);
-    if (err.type === 'peer-unavailable') {
-        // Admin offline
-        document.getElementById('waiting-section').style.display = 'block';
-        document.getElementById('meeting-section').style.display = 'none';
-        waitingQueue.push({
-            id: myPeer.id,
-            joinTime: new Date()
-        });
-        updateQueuePosition();
-    }
 });
