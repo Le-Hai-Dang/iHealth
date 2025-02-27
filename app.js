@@ -53,19 +53,7 @@ const chatSection = document.querySelector('.chat-section');
 const chatToggleBtn = document.getElementById('chat-toggle');
 
 // Cập nhật cấu hình PeerJS
-const myPeer = new Peer(undefined, {
-    host: '0.peerjs.com', // Thay đổi host
-    port: 443,
-    secure: true,
-    path: '/',
-    debug: 3,
-    config: {
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-    }
-});
+let myPeer;
 
 // Thêm error handler chi tiết
 myPeer.on('error', (err) => {
@@ -644,3 +632,33 @@ document.getElementById('leave-queue-button').addEventListener('click', () => {
     document.getElementById('consultation-popup').style.display = 'none';
     document.getElementById('waiting-section').style.display = 'none';
 });
+
+// Sửa lại cấu hình PeerJS cho admin
+if (checkAdminCookie()) {
+    myPeer = new Peer('admin', {
+        host: '0.peerjs.com',
+        port: 443,
+        secure: true,
+        path: '/',
+        debug: 3,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                {
+                    urls: 'turn:numb.viagenie.ca',
+                    username: 'webrtc@live.com', 
+                    credential: 'muazkh'
+                }
+            ]
+        }
+    });
+} else {
+    myPeer = new Peer(undefined, {
+        host: '0.peerjs.com',
+        port: 443,
+        secure: true,
+        path: '/',
+        debug: 3
+    });
+}
