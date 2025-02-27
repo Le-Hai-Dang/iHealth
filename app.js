@@ -383,8 +383,16 @@ async function initializeGuestView() {
             audio: true
         });
         
-        // Hiển thị video của user
-        document.getElementById('meeting-section').style.display = 'block';
+        // Hiển thị popup consultation
+        consultationPopup.style.display = 'block';
+        
+        // Ẩn meeting section, hiển thị waiting section
+        document.getElementById('meeting-section').style.display = 'none';
+        document.getElementById('waiting-section').style.display = 'block';
+        
+        // Thêm video vào grid
+        const videoGrid = document.getElementById('video-grid');
+        videoGrid.innerHTML = ''; // Clear grid
         addVideoStream(myVideo, myVideoStream);
 
         // Sau đó mới kết nối PeerJS
@@ -396,11 +404,17 @@ async function initializeGuestView() {
             }
         });
 
-        document.getElementById('waiting-section').style.display = 'block';
+        // Thêm vào waiting queue
+        waitingQueue.push({
+            id: myPeer.id,
+            joinTime: new Date()
+        });
+        updateQueuePosition();
         initializeControls();
 
     } catch (err) {
         console.error('Guest view error:', err);
+        alert('Không thể khởi tạo camera và microphone. Vui lòng kiểm tra quyền truy cập.');
     }
 }
 
