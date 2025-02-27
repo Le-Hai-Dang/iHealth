@@ -386,16 +386,17 @@ async function initializeGuestView() {
         // Hiển thị popup consultation
         consultationPopup.style.display = 'block';
         
-        // Ẩn meeting section, hiển thị waiting section
-        document.getElementById('meeting-section').style.display = 'none';
-        document.getElementById('waiting-section').style.display = 'block';
+        // Hiển thị video trong meeting section
+        const meetingSection = document.getElementById('meeting-section');
+        meetingSection.style.display = 'block';
         
         // Thêm video vào grid
         const videoGrid = document.getElementById('video-grid');
         videoGrid.innerHTML = ''; // Clear grid
+        videoGrid.style.display = 'grid';
         addVideoStream(myVideo, myVideoStream);
 
-        // Sau đó mới kết nối PeerJS
+        // Sau đó mới kết nối PeerJS và thêm vào waiting queue
         await new Promise((resolve) => {
             if (myPeer.open) {
                 resolve();
@@ -404,7 +405,6 @@ async function initializeGuestView() {
             }
         });
 
-        // Thêm vào waiting queue
         waitingQueue.push({
             id: myPeer.id,
             joinTime: new Date()
@@ -525,9 +525,15 @@ function showWaitingSection() {
 }
 
 function updateQueuePosition() {
-    const position = waitingQueue.findIndex(u => u.userId === currentUser) + 1;
-    document.getElementById('queue-number').textContent = position;
-    document.getElementById('waiting-count').textContent = waitingQueue.length;
+    const queueNumber = document.getElementById('queue-number');
+    const waitingCount = document.getElementById('waiting-count');
+    
+    if (queueNumber && waitingCount) {
+        // Tìm vị trí của user hiện tại trong queue
+        const position = waitingQueue.findIndex(u => u.id === myPeer.id) + 1;
+        queueNumber.textContent = position || '0';
+        waitingCount.textContent = waitingQueue.length - 1; // Trừ đi user hiện tại
+    }
 }
 
 // Rời phòng
