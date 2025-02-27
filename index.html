@@ -161,7 +161,7 @@
     <div id="consultation-popup" class="popup">
         <div class="popup-content">
             <span class="close-popup">&times;</span>
-            <h2>Tư vấn trực tuyến</h2>
+            
             <div id="consultation-content">
                 <!-- Phần chờ của user -->
                 <div id="waiting-section" style="display: none;">
@@ -173,7 +173,7 @@
 
                 <!-- Phần quản lý của admin -->
                 <div id="admin-section" style="display: none;">
-                    <h2>Quản lý phòng tư vấn</h2>
+            
                     <div class="queue-list">
                         <h3>Danh sách chờ</h3>
                         <div id="waiting-list"></div>
@@ -187,14 +187,10 @@
                     <div class="meeting-controls">
                         <button id="mic-toggle"><i class="fas fa-microphone"></i></button>
                         <button id="camera-toggle"><i class="fas fa-video"></i></button>
-                        <button id="chat-toggle"><i class="fas fa-comments"></i></button>
+                        <!-- <button id="chat-toggle"><i class="fas fa-comments"></i></button> -->
                         <button id="end-call" class="danger"><i class="fas fa-phone-slash"></i></button>
                     </div>
-                    <div class="chat-section" style="display: none;">
-                        <div id="chat-messages"></div>
-                        <div class="chat-input">
-                            <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
-                            <button id="send-button">Gửi</button>
+                    
                         </div>
                     </div>
                 </div>
