@@ -179,12 +179,15 @@ async function initializeStream() {
             video: true,
             audio: true
         });
-        addVideoStream(myVideo, myVideoStream);
-        initializeControls();
+        myVideo.srcObject = myVideoStream;
+        myVideo.addEventListener('loadedmetadata', () => {
+            myVideo.play();
+        });
+        videoGrid.append(myVideo);
         return myVideoStream;
     } catch (err) {
-        console.error('Không thể truy cập camera hoặc microphone:', err);
-        alert('Vui lòng cho phép truy cập camera và microphone để sử dụng tính năng tư vấn');
+        console.error('Lỗi truy cập media:', err);
+        alert('Vui lòng cho phép truy cập camera và microphone');
     }
 }
 
@@ -272,29 +275,27 @@ function endCall() {
 // Khởi tạo view cho khách
 async function initializeGuestView() {
     await initializeStream();
+    console.log('Guest PeerID:', myPeer.id);
     
-    // Kiểm tra số người trong hàng đợi
     if (waitingQueue.length === 0) {
-        // Người đầu tiên - vào phòng ngay
+        // Người đầu tiên - kết nối trực tiếp với admin
         document.getElementById('waiting-section').style.display = 'none';
         document.getElementById('meeting-section').style.display = 'block';
         
-        // Kết nối với admin
-        const conn = myPeer.connect('admin');
-        conn.on('open', () => {
-            conn.send({
-                type: 'first-guest',
-                userId: currentUser
-            });
+        // Gọi tới admin
+        const call = myPeer.call('admin', myVideoStream);
+        const video = document.createElement('video');
+        
+        call.on('stream', (adminVideoStream) => {
+            addVideoStream(video, adminVideoStream);
         });
         
-        initializeControls();
+        peers[call.peer] = call;
     } else {
         // Xếp hàng chờ
         document.getElementById('waiting-section').style.display = 'block';
         waitingQueue.push({
             id: myPeer.id,
-            userId: currentUser,
             joinTime: new Date()
         });
         updateQueuePosition();
@@ -305,16 +306,9 @@ async function initializeGuestView() {
 async function initializeAdminRoom() {
     await initializeStream();
     
-    myPeer.on('connection', (conn) => {
-        conn.on('data', (data) => {
-            if (data.type === 'first-guest') {
-                // Thông báo có người đầu tiên vào phòng
-                alert('Có bệnh nhân đang chờ tư vấn!');
-                document.getElementById('meeting-section').style.display = 'block';
-                initializeControls();
-            }
-        });
-    });
+    // Lưu ID của admin
+    const adminPeerId = myPeer.id;
+    console.log('Admin PeerID:', adminPeerId);
 
     myPeer.on('call', (call) => {
         call.answer(myVideoStream);
@@ -323,6 +317,8 @@ async function initializeAdminRoom() {
         call.on('stream', (userVideoStream) => {
             addVideoStream(video, userVideoStream);
         });
+        
+        peers[call.peer] = call;
     });
 }
 
