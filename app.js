@@ -377,39 +377,42 @@ function endCall() {
 // Khởi tạo view cho khách
 async function initializeGuestView() {
     try {
-        // Khởi tạo media stream trước
+        // 1. Khởi tạo media stream
         myVideoStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
         });
         
-        // Hiển thị popup consultation
+        // 2. Hiển thị popup và waiting section
         consultationPopup.style.display = 'block';
+        document.getElementById('waiting-section').style.display = 'block';
+        document.getElementById('meeting-section').style.display = 'none';
         
-        // Hiển thị video trong meeting section
-        const meetingSection = document.getElementById('meeting-section');
-        meetingSection.style.display = 'block';
-        
-        // Thêm video vào grid
-        const videoGrid = document.getElementById('video-grid');
-        videoGrid.innerHTML = ''; // Clear grid
-        videoGrid.style.display = 'grid';
-        addVideoStream(myVideo, myVideoStream);
-
-        // Sau đó mới kết nối PeerJS và thêm vào waiting queue
-        await new Promise((resolve) => {
-            if (myPeer.open) {
-                resolve();
-            } else {
-                myPeer.on('open', resolve);
-            }
-        });
-
+        // 3. Thêm vào waiting queue
         waitingQueue.push({
             id: myPeer.id,
             joinTime: new Date()
         });
         updateQueuePosition();
+
+        // 4. Lắng nghe cuộc gọi từ admin
+        myPeer.on('call', call => {
+            call.answer(myVideoStream);
+            
+            const adminVideo = document.createElement('video');
+            call.on('stream', adminVideoStream => {
+                // Khi nhận được stream từ admin
+                document.getElementById('waiting-section').style.display = 'none';
+                document.getElementById('meeting-section').style.display = 'block';
+                
+                // Hiển thị video của cả 2
+                addVideoStream(myVideo, myVideoStream);
+                addVideoStream(adminVideo, adminVideoStream);
+            });
+            
+            peers[call.peer] = call;
+        });
+
         initializeControls();
 
     } catch (err) {
@@ -485,13 +488,21 @@ function updateWaitingList() {
 function callUser(peerId) {
     if (!isAdmin || !myVideoStream) return;
     
-    console.log('Calling user:', peerId);
+    console.log('Admin calling user:', peerId);
     const call = myPeer.call(peerId, myVideoStream);
-    handleVideoCall(call);
+    
+    const userVideo = document.createElement('video');
+    call.on('stream', userVideoStream => {
+        document.getElementById('meeting-section').style.display = 'block';
+        addVideoStream(myVideo, myVideoStream);
+        addVideoStream(userVideo, userVideoStream);
+    });
+    
+    peers[call.peer] = call;
     
     // Xóa user khỏi hàng đợi
     waitingQueue = waitingQueue.filter(u => u.id !== peerId);
-    updateWaitingList();
+    updateQueuePosition();
 }
 
 // Xử lý kết thúc cuộc họp
