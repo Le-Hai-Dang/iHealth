@@ -55,16 +55,6 @@ const chatToggleBtn = document.getElementById('chat-toggle');
 // Cập nhật cấu hình PeerJS
 let myPeer;
 
-// Thêm error handler chi tiết
-myPeer.on('error', (err) => {
-    console.error('PeerJS error:', err);
-    if (err.type === 'peer-unavailable') {
-        alert('Không thể kết nối với người dùng khác');
-    } else if (err.type === 'network') {
-        alert('Lỗi kết nối mạng');
-    }
-});
-
 // Kiểm tra cookie admin khi load trang
 function checkAdminCookie() {
     const adminCookie = document.cookie
@@ -633,7 +623,7 @@ document.getElementById('leave-queue-button').addEventListener('click', () => {
     document.getElementById('waiting-section').style.display = 'none';
 });
 
-// Sửa lại cấu hình PeerJS cho admin
+// Khởi tạo PeerJS trước khi sử dụng
 if (checkAdminCookie()) {
     myPeer = new Peer('admin', {
         host: '0.peerjs.com',
@@ -644,12 +634,7 @@ if (checkAdminCookie()) {
         config: {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                {
-                    urls: 'turn:numb.viagenie.ca',
-                    username: 'webrtc@live.com', 
-                    credential: 'muazkh'
-                }
+                { urls: 'stun:stun1.l.google.com:19302' }
             ]
         }
     });
@@ -662,3 +647,18 @@ if (checkAdminCookie()) {
         debug: 3
     });
 }
+
+// Sau đó mới thêm error handler
+myPeer.on('error', (err) => {
+    console.error('PeerJS error:', err);
+    if (err.type === 'peer-unavailable') {
+        // Admin offline
+        document.getElementById('waiting-section').style.display = 'block';
+        document.getElementById('meeting-section').style.display = 'none';
+        waitingQueue.push({
+            id: myPeer.id,
+            joinTime: new Date()
+        });
+        updateQueuePosition();
+    }
+});
