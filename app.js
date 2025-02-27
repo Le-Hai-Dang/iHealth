@@ -17,11 +17,6 @@ const waitingSection = document.getElementById('waiting-section');
 const adminSection = document.getElementById('admin-section');
 const meetingSection = document.getElementById('meeting-section');
 const videoGrid = document.getElementById('video-grid');
-const myPeer = new Peer(undefined, {
-    host: 'peerjs-server.herokuapp.com',
-    secure: true,
-    port: 443
-});
 
 // DOM Elements
 const joinSection = document.getElementById('join-section');
@@ -32,7 +27,6 @@ const roomIdDisplay = document.getElementById('room-id');
 const joinButton = document.getElementById('join-button');
 const createButton = document.getElementById('create-button');
 const copyButton = document.getElementById('copy-button');
-const leaveButton = document.getElementById('leave-button');
 const roomInput = document.getElementById('room-input');
 
 const myVideo = document.createElement('video');
@@ -58,6 +52,31 @@ const chatMessages = document.getElementById('chat-messages');
 const chatSection = document.querySelector('.chat-section');
 const chatToggleBtn = document.getElementById('chat-toggle');
 
+// Cập nhật cấu hình PeerJS
+const myPeer = new Peer(undefined, {
+    host: '0.peerjs.com', // Thay đổi host
+    port: 443,
+    secure: true,
+    path: '/',
+    debug: 3,
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    }
+});
+
+// Thêm error handler chi tiết
+myPeer.on('error', (err) => {
+    console.error('PeerJS error:', err);
+    if (err.type === 'peer-unavailable') {
+        alert('Không thể kết nối với người dùng khác');
+    } else if (err.type === 'network') {
+        alert('Lỗi kết nối mạng');
+    }
+});
+
 // Kiểm tra cookie admin khi load trang
 function checkAdminCookie() {
     const adminCookie = document.cookie
@@ -81,24 +100,49 @@ function setAdminCookie(username) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Nút tư vấn trực tuyến
+    // Khởi tạo controls
+    micToggle = document.getElementById('mic-toggle');
+    cameraToggle = document.getElementById('camera-toggle');
+    endCallButton = document.getElementById('end-call');
+    
+    // Nút tư vấn
     const consultBtn = document.querySelector('.cta-button');
-    if (consultBtn) {
-        consultBtn.addEventListener('click', () => {
-            const consultationPopup = document.getElementById('consultation-popup');
-            if (checkAdminCookie()) {
-                isAdmin = true;
-                currentUser = 'admin';
-                document.getElementById('admin-section').style.display = 'block';
-                document.getElementById('meeting-section').style.display = 'block';
-                initializeAdminRoom();
-            } else {
-                const guestId = 'guest-' + Math.random().toString(36).substr(2, 9);
-                currentUser = guestId;
-                document.getElementById('waiting-section').style.display = 'block';
-                initializeGuestView();
+    if (consultBtn && consultationPopup) {
+        consultBtn.addEventListener('click', async () => {
+            try {
+                console.log('Consultation button clicked');
+                
+                if (checkAdminCookie()) {
+                    isAdmin = true;
+                    currentUser = 'admin';
+                    // Hiển thị admin section và meeting section
+                    document.getElementById('admin-section').style.display = 'block';
+                    document.getElementById('meeting-section').style.display = 'block';
+                    consultationPopup.style.display = 'block';
+                    
+                    console.log('Admin view initialized');
+                    await initializeAdminRoom();
+                } else {
+                    const guestId = 'guest-' + Math.random().toString(36).substr(2, 9);
+                    currentUser = guestId;
+                    document.getElementById('waiting-section').style.display = 'block';
+                    consultationPopup.style.display = 'block';
+                    
+                    console.log('Guest view initialized');
+                    await initializeGuestView();
+                }
+            } catch (err) {
+                console.error('Error initializing consultation:', err);
             }
-            consultationPopup.style.display = 'block';
+        });
+    }
+
+    // Thêm xử lý cho nút "Gọi bệnh nhân tiếp theo"
+    const nextPatientBtn = document.getElementById('next-patient-button');
+    if (nextPatientBtn) {
+        nextPatientBtn.addEventListener('click', async () => {
+            document.getElementById('meeting-section').style.display = 'block';
+            await initializeAdminRoom();
         });
     }
 
@@ -142,15 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Đóng popup
-    const closeButtons = document.querySelectorAll('.close-popup');
-    closeButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const popup = button.closest('.popup');
-            if (popup) {
-                popup.style.display = 'none';
-            }
+    const closePopupBtn = document.querySelector('.close-popup');
+    if (closePopupBtn && consultationPopup) {
+        closePopupBtn.addEventListener('click', () => {
+            consultationPopup.style.display = 'none';
         });
-    });
+    }
 
     // Click outside để đóng popup
     window.addEventListener('click', (e) => {
@@ -162,27 +203,61 @@ document.addEventListener('DOMContentLoaded', () => {
     // Xử lý hiển thị/ẩn chat khi click vào icon chat
     chatToggleBtn.addEventListener('click', () => {
         const chatSection = document.querySelector('.chat-section');
-        if (chatSection.style.display === 'none' || !chatSection.style.display) {
-            chatSection.style.display = 'flex';
-            chatToggleBtn.classList.add('active');
-        } else {
-            chatSection.style.display = 'none';
-            chatToggleBtn.classList.remove('active');
+        if (chatSection) {
+            if (chatSection.style.display === 'none' || !chatSection.style.display) {
+                chatSection.style.display = 'flex';
+                chatToggleBtn.classList.add('active');
+            } else {
+                chatSection.style.display = 'none';
+                chatToggleBtn.classList.remove('active');
+            }
         }
     });
+
+    // Chỉ khởi tạo các button khi DOM đã load xong
+    if (createButton) {
+        createButton.addEventListener('click', () => {
+            initializeStream().then(() => {
+                currentRoom = myPeer.id;
+                showRoom();
+            });
+        });
+    }
+
+    if (joinButton) {
+        joinButton.addEventListener('click', () => {
+            const roomId = roomInput?.value.trim();
+            if (roomId) {
+                currentRoom = roomId;
+                initializeStream().then(() => {
+                    connectToRoom(roomId);
+                    showRoom();
+                });
+            }
+        });
+    }
+
+    if (copyButton) {
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(currentRoom);
+            alert('Đã sao chép ID phòng!');
+        });
+    }
 });
 
-// Khởi tạo stream video và audio
+// Khởi tạo stream
 async function initializeStream() {
     try {
+        console.log('Requesting media access...');
         myVideoStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
         });
+        console.log('Media access granted');
         addVideoStream(myVideo, myVideoStream);
         return myVideoStream;
     } catch (err) {
-        console.error('Lỗi truy cập media:', err);
+        console.error('Media access error:', err);
         alert('Vui lòng cho phép truy cập camera và microphone');
     }
 }
@@ -192,52 +267,69 @@ function addVideoStream(video, stream) {
     video.srcObject = stream;
     video.addEventListener('loadedmetadata', () => {
         video.play();
+        console.log('Video playing');
     });
-    videoGrid.append(video);
+    const videoGrid = document.getElementById('video-grid');
+    if (videoGrid) {
+        videoGrid.append(video);
+        console.log('Video appended to grid');
+    }
 }
 
 // Khởi tạo các controls
 function initializeControls() {
-    micToggle = document.getElementById('mic-toggle');
-    cameraToggle = document.getElementById('camera-toggle');
-    endCallButton = document.getElementById('end-call');
+    // Đảm bảo các elements tồn tại trước khi thêm event listener
+    const micToggle = document.getElementById('mic-toggle');
+    const cameraToggle = document.getElementById('camera-toggle');
+    const endCallButton = document.getElementById('end-call');
+    const chatToggleBtn = document.getElementById('chat-toggle');
+    const leaveButton = document.getElementById('leave-queue-button');
 
-    // Xử lý bật/tắt mic
-    micToggle.addEventListener('click', () => {
-        if (myVideoStream) {
-            const audioTrack = myVideoStream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                micToggle.classList.toggle('active');
-                const micIcon = micToggle.querySelector('i');
-                micIcon.className = audioTrack.enabled ? 
-                    'fas fa-microphone' : 
-                    'fas fa-microphone-slash';
+    if (micToggle) {
+        micToggle.addEventListener('click', () => {
+            if (myVideoStream) {
+                const audioTrack = myVideoStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    micToggle.classList.toggle('active');
+                    const micIcon = micToggle.querySelector('i');
+                    if (micIcon) {
+                        micIcon.className = audioTrack.enabled ? 
+                            'fas fa-microphone' : 
+                            'fas fa-microphone-slash';
+                    }
+                }
             }
-        }
-    });
+        });
+    }
 
-    // Xử lý bật/tắt camera
-    cameraToggle.addEventListener('click', () => {
-        if (myVideoStream) {
-            const videoTrack = myVideoStream.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                cameraToggle.classList.toggle('active');
-                const videoIcon = cameraToggle.querySelector('i');
-                videoIcon.className = videoTrack.enabled ? 
-                    'fas fa-video' : 
-                    'fas fa-video-slash';
+    if (cameraToggle) {
+        cameraToggle.addEventListener('click', () => {
+            if (myVideoStream) {
+                const videoTrack = myVideoStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    cameraToggle.classList.toggle('active');
+                    const videoIcon = cameraToggle.querySelector('i');
+                    if (videoIcon) {
+                        videoIcon.className = videoTrack.enabled ? 
+                            'fas fa-video' : 
+                            'fas fa-video-slash';
+                    }
+                }
             }
-        }
-    });
+        });
+    }
 
-    // Xử lý kết thúc cuộc gọi
-    endCallButton.addEventListener('click', () => {
-        if (confirm('Bạn có chắc muốn kết thúc cuộc gọi?')) {
-            endCall();
-        }
-    });
+    if (endCallButton) {
+        endCallButton.addEventListener('click', () => {
+            if (confirm('Bạn có chắc muốn kết thúc cuộc gọi?')) {
+                endCall();
+            }
+        });
+    }
+
+    console.log('Controls initialized');
 }
 
 // Hàm kết thúc cuộc gọi
@@ -270,53 +362,89 @@ function endCall() {
 
 // Khởi tạo view cho khách
 async function initializeGuestView() {
-    await initializeStream();
-    initializeControls();
-    
-    if (waitingQueue.length === 0) {
-        document.getElementById('waiting-section').style.display = 'none';
-        document.getElementById('meeting-section').style.display = 'block';
-        
-        console.log('User gọi tới admin');
-        const call = myPeer.call('admin', myVideoStream);
-        
-        const adminVideo = document.createElement('video');
-        call.on('stream', (adminVideoStream) => {
-            console.log('User nhận được stream của admin');
-            addVideoStream(adminVideo, adminVideoStream);
+    try {
+        // Đợi kết nối PeerJS được thiết lập
+        await new Promise((resolve) => {
+            myPeer.on('open', (id) => {
+                console.log('Guest PeerID:', id);
+                resolve();
+            });
+        });
+
+        // Khởi tạo media stream
+        myVideoStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
         });
         
-        call.on('error', (err) => {
-            console.error('Lỗi kết nối:', err);
-        });
-    } else {
-        document.getElementById('waiting-section').style.display = 'block';
-        waitingQueue.push({
-            id: myPeer.id,
-            joinTime: new Date()
-        });
-        updateQueuePosition();
+        addVideoStream(myVideo, myVideoStream);
+
+        if (waitingQueue.length === 0) {
+            document.getElementById('waiting-section').style.display = 'none';
+            document.getElementById('meeting-section').style.display = 'block';
+
+            console.log('Guest calling admin');
+            const call = myPeer.call('admin', myVideoStream);
+            
+            const adminVideo = document.createElement('video');
+            call.on('stream', (adminVideoStream) => {
+                console.log('Guest received admin stream');
+                addVideoStream(adminVideo, adminVideoStream);
+            });
+            
+            peers[call.peer] = call;
+        } else {
+            document.getElementById('waiting-section').style.display = 'block';
+            waitingQueue.push({
+                id: myPeer.id,
+                joinTime: new Date()
+            });
+            updateQueuePosition();
+        }
+
+        initializeControls();
+    } catch (err) {
+        console.error('Guest view error:', err);
     }
 }
 
 // Khởi tạo phòng cho admin
 async function initializeAdminRoom() {
-    await initializeStream();
-    initializeControls();
-    
-    // Chia layout video grid cho admin
-    videoGrid.style.gridTemplateColumns = "1fr 1fr";
-    
-    myPeer.on('call', (call) => {
-        console.log('Admin nhận cuộc gọi từ user');
-        call.answer(myVideoStream);
+    try {
+        console.log('Initializing admin room...');
         
-        const userVideo = document.createElement('video');
-        call.on('stream', (userVideoStream) => {
-            console.log('Admin nhận được stream của user');
-            addVideoStream(userVideo, userVideoStream);
+        // Khởi tạo media stream
+        myVideoStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
         });
-    });
+        console.log('Admin stream created');
+        
+        // Hiển thị video của admin trong video grid
+        const videoGrid = document.getElementById('video-grid');
+        if (videoGrid) {
+            videoGrid.innerHTML = ''; // Clear grid
+            addVideoStream(myVideo, myVideoStream);
+            console.log('Admin video added to grid');
+        } else {
+            console.error('Video grid element not found');
+        }
+
+        // Hiển thị meeting section
+        const meetingSection = document.getElementById('meeting-section');
+        if (meetingSection) {
+            meetingSection.style.display = 'block';
+            console.log('Meeting section displayed');
+        }
+
+        // Khởi tạo controls
+        initializeControls();
+        console.log('Controls initialized');
+
+    } catch (err) {
+        console.error('Admin room error:', err);
+        alert('Không thể khởi tạo camera và microphone. Vui lòng kiểm tra quyền truy cập.');
+    }
 }
 
 // Cập nhật hiển thị danh sách chờ
@@ -392,41 +520,18 @@ function updateQueuePosition() {
     document.getElementById('waiting-count').textContent = waitingQueue.length;
 }
 
-// Tạo phòng mới
-createButton.addEventListener('click', () => {
-    initializeStream().then(() => {
-        currentRoom = myPeer.id;
-        showRoom();
-    });
-});
-
-// Tham gia phòng
-joinButton.addEventListener('click', () => {
-    const roomId = roomInput.value.trim();
-    if (roomId) {
-        currentRoom = roomId;
-        initializeStream().then(() => {
-            connectToRoom(roomId);
-            showRoom();
-        });
-    }
-});
-
-// Copy room ID
-copyButton.addEventListener('click', () => {
-    navigator.clipboard.writeText(currentRoom);
-    alert('Đã sao chép ID phòng!');
-});
-
 // Rời phòng
-leaveButton.addEventListener('click', () => {
-    if (myVideoStream) {
-        myVideoStream.getTracks().forEach(track => track.stop());
-    }
-    Object.values(peers).forEach(call => call.close());
-    myPeer.disconnect();
-    resetUI();
-});
+const leaveButton = document.getElementById('leave-queue-button');
+if (leaveButton) {
+    leaveButton.addEventListener('click', () => {
+        if (myVideoStream) {
+            myVideoStream.getTracks().forEach(track => track.stop());
+        }
+        Object.values(peers).forEach(call => call.close());
+        myPeer.disconnect();
+        resetUI();
+    });
+}
 
 // Hiển thị giao diện phòng
 function showRoom() {
