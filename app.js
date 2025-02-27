@@ -179,11 +179,7 @@ async function initializeStream() {
             video: true,
             audio: true
         });
-        myVideo.srcObject = myVideoStream;
-        myVideo.addEventListener('loadedmetadata', () => {
-            myVideo.play();
-        });
-        videoGrid.append(myVideo);
+        addVideoStream(myVideo, myVideoStream);
         return myVideoStream;
     } catch (err) {
         console.error('Lỗi truy cập media:', err);
@@ -191,7 +187,7 @@ async function initializeStream() {
     }
 }
 
-// Thêm video stream vào grid
+// Hàm thêm video stream
 function addVideoStream(video, stream) {
     video.srcObject = stream;
     video.addEventListener('loadedmetadata', () => {
@@ -281,21 +277,18 @@ async function initializeGuestView() {
         document.getElementById('waiting-section').style.display = 'none';
         document.getElementById('meeting-section').style.display = 'block';
         
-        // Kết nối với admin
-        console.log('Attempting to call admin');
+        console.log('User gọi tới admin');
         const call = myPeer.call('admin', myVideoStream);
         
-        const video = document.createElement('video');
+        const adminVideo = document.createElement('video');
         call.on('stream', (adminVideoStream) => {
-            console.log('Received admin stream');
-            addVideoStream(video, adminVideoStream);
-        });
-
-        call.on('error', (err) => {
-            console.error('Call error:', err);
+            console.log('User nhận được stream của admin');
+            addVideoStream(adminVideo, adminVideoStream);
         });
         
-        peers[call.peer] = call;
+        call.on('error', (err) => {
+            console.error('Lỗi kết nối:', err);
+        });
     } else {
         document.getElementById('waiting-section').style.display = 'block';
         waitingQueue.push({
@@ -311,32 +304,18 @@ async function initializeAdminRoom() {
     await initializeStream();
     initializeControls();
     
-    // Set fixed ID cho admin
-    myPeer = new Peer('admin', {
-        host: 'peerjs-server.herokuapp.com',
-        secure: true,
-        port: 443
-    });
-
-    myPeer.on('open', (id) => {
-        console.log('Admin connected with ID:', id);
-    });
-
+    // Chia layout video grid cho admin
+    videoGrid.style.gridTemplateColumns = "1fr 1fr";
+    
     myPeer.on('call', (call) => {
-        console.log('Receiving call from guest');
+        console.log('Admin nhận cuộc gọi từ user');
         call.answer(myVideoStream);
         
-        const video = document.createElement('video');
+        const userVideo = document.createElement('video');
         call.on('stream', (userVideoStream) => {
-            console.log('Received guest stream');
-            addVideoStream(video, userVideoStream);
+            console.log('Admin nhận được stream của user');
+            addVideoStream(userVideo, userVideoStream);
         });
-        
-        peers[call.peer] = call;
-    });
-
-    myPeer.on('error', (err) => {
-        console.error('PeerJS error:', err);
     });
 }
 
