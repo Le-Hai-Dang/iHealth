@@ -275,24 +275,28 @@ function endCall() {
 // Khởi tạo view cho khách
 async function initializeGuestView() {
     await initializeStream();
-    console.log('Guest PeerID:', myPeer.id);
+    initializeControls();
     
     if (waitingQueue.length === 0) {
-        // Người đầu tiên - kết nối trực tiếp với admin
         document.getElementById('waiting-section').style.display = 'none';
         document.getElementById('meeting-section').style.display = 'block';
         
-        // Gọi tới admin
+        // Kết nối với admin
+        console.log('Attempting to call admin');
         const call = myPeer.call('admin', myVideoStream);
-        const video = document.createElement('video');
         
+        const video = document.createElement('video');
         call.on('stream', (adminVideoStream) => {
+            console.log('Received admin stream');
             addVideoStream(video, adminVideoStream);
+        });
+
+        call.on('error', (err) => {
+            console.error('Call error:', err);
         });
         
         peers[call.peer] = call;
     } else {
-        // Xếp hàng chờ
         document.getElementById('waiting-section').style.display = 'block';
         waitingQueue.push({
             id: myPeer.id,
@@ -305,20 +309,34 @@ async function initializeGuestView() {
 // Khởi tạo phòng cho admin
 async function initializeAdminRoom() {
     await initializeStream();
+    initializeControls();
     
-    // Lưu ID của admin
-    const adminPeerId = myPeer.id;
-    console.log('Admin PeerID:', adminPeerId);
+    // Set fixed ID cho admin
+    myPeer = new Peer('admin', {
+        host: 'peerjs-server.herokuapp.com',
+        secure: true,
+        port: 443
+    });
+
+    myPeer.on('open', (id) => {
+        console.log('Admin connected with ID:', id);
+    });
 
     myPeer.on('call', (call) => {
+        console.log('Receiving call from guest');
         call.answer(myVideoStream);
-        const video = document.createElement('video');
         
+        const video = document.createElement('video');
         call.on('stream', (userVideoStream) => {
+            console.log('Received guest stream');
             addVideoStream(video, userVideoStream);
         });
         
         peers[call.peer] = call;
+    });
+
+    myPeer.on('error', (err) => {
+        console.error('PeerJS error:', err);
     });
 }
 
